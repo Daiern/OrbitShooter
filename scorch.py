@@ -11,7 +11,7 @@ screen=pygame.display.set_mode((width, height))
 
 background = pygame.image.load("resources/Sprites/spaceBackground.png")
 
-#clock = pygame.time.Clock()
+clock = pygame.time.Clock()
 
 player = pygame.image.load("resources/Sprites/playerShip.png")
 playerScaled = pygame.transform.scale(player, (25, 25))
@@ -33,6 +33,8 @@ player2WinFontSurface = mainFont.render("Player 2 Wins!", 1, (150, 255, 50))
 
 gameOverFontSurface = mainFont.render("Game Over!", 1, (150, 255, 50))
 
+#define classes of sprites
+
 class Ship(pygame.sprite.Sprite):
 	def __init__(self, n, position):
 		pygame.sprite.Sprite.__init__(self)
@@ -45,7 +47,7 @@ class Ship(pygame.sprite.Sprite):
 		self.image = playerScaled
 		self.rect = self.image.get_rect()
 		self.radius = self.rect.width/2
-		self.health = 1000
+		self.health = 10000
 
 	def move(self):
 		self.pos = [self.pos[0] + self.vel[0], self.pos[1] + self.vel[1]]
@@ -55,7 +57,7 @@ class Ship(pygame.sprite.Sprite):
 class Planet(pygame.sprite.Sprite):
 	def __init__(self):
 		pygame.sprite.Sprite.__init__(self)
-		self.pos=[width/2-35,height/2-35]
+		self.pos=[width/2-70,height/2-70]
 		#self.mass=7.34e22
 		self.mass=1000000
 		self.image = greenPlanet
@@ -72,12 +74,14 @@ class Bullet(pygame.sprite.Sprite):
 		self.image = bulletImage
 		self.rect = self.image.get_rect()
 		self.radius = self.rect.width/2
+		self.damage = 0
 
 
 	def move(self):
 		self.pos = [self.pos[0] + self.vel[0], self.pos[1] + self.vel[1]]
 		self.rect.x = self.pos[0]
 		self.rect.y = self.pos[1]
+		self.damage += abs(self.vel[0]) + abs(self.vel[1])
 
 G = 6.67e-11
 pi = np.pi
@@ -86,16 +90,20 @@ cos = np.cos
 orbiter = Ship(0, 0)
 orbiter2 = Ship(1, width-(playerScaled.get_size()[0]))
 
+orbiter.rect.x = orbiter.pos[0]
+orbiter.rect.y = orbiter.pos[1]
+orbiter2.rect.x = orbiter2.pos[0]
+orbiter2.rect.y = orbiter2.pos[1]
+
 moon = Planet()
 moon2 = Planet()
 moon3 = Planet()
+moon4 = Planet()
 
-bodyList = [moon, moon2, moon3]
-bodyImageList = [moon.image, moon2.image, moon3.image]
-
-moon.pos = [moon.pos[0]/1.8, moon.pos[1]/1.3]
+moon.pos = [moon.pos[0]/1.5, moon.pos[1]/1.5]
 moon2.pos = [moon2.pos[0]*1.5, moon2.pos[1]*1.5]
-moon3.pos = [moon3.pos[0]*1.4, moon3.pos[1]/2.2]
+moon3.pos = [moon3.pos[0]*1.5, moon3.pos[1]/1.5]
+moon4.pos = [moon4.pos[0]/1.5, moon4.pos[1]*1.5]
 
 moon.rect.x = moon.pos[0]
 moon.rect.y = moon.pos[1]
@@ -103,16 +111,17 @@ moon2.rect.x = moon2.pos[0]
 moon2.rect.y = moon2.pos[1]
 moon3.rect.x = moon3.pos[0]
 moon3.rect.y = moon3.pos[1]
+moon4.rect.x = moon4.pos[0]
+moon4.rect.y = moon4.pos[1]
 
-orbiter.rect.x = orbiter.pos[0]
-orbiter.rect.y = orbiter.pos[1]
-orbiter2.rect.x = orbiter2.pos[0]
-orbiter2.rect.y = orbiter2.pos[1]
+bodyList = [moon, moon2, moon3, moon4]
+bodyImageList = [moon.image, moon2.image, moon3.image, moon4.image]
 
 bodyGroup = pygame.sprite.Group()
 bodyGroup.add(moon)
 bodyGroup.add(moon2)
 bodyGroup.add(moon3)
+bodyGroup.add(moon4)
 
 player1Group = pygame.sprite.Group()
 player1Group.add(orbiter)
@@ -120,7 +129,7 @@ player1Group.add(orbiter)
 player2Group = pygame.sprite.Group()
 player2Group.add(orbiter2)
 
-bullet = Bullet([-10.0, -10.0])
+bullet = Bullet([-10.0, -10.0]) #initialize the bullet that will be fired by each player
 
 def bulletCoM():
 	bulletImageSize = bulletImage.get_size()
@@ -250,8 +259,6 @@ def collision(obj, bodylist):
 		else:
 			return False
 
-clock = pygame.time.Clock()
-
 turnOver = 0
 
 winner = -1
@@ -262,6 +269,7 @@ winner = -1
 def turnLoop(player):
 	turnFontShown = 0
 	turnOver = 0
+	bullet.damage = 0
 	while not turnOver:
 		screen.fill(0)
 
@@ -292,7 +300,7 @@ def turnLoop(player):
 
 		if player == 0:
 			if collision(bullet, player2Group):
-				orbiter2.health = orbiter2.health - 300
+				orbiter2.health = orbiter2.health - bullet.damage
 				turnOver = 1
 				print orbiter2.health
 				if orbiter2.health < 0:
@@ -300,7 +308,7 @@ def turnLoop(player):
 
 		if player == 1:
 			if collision(bullet, player1Group):
-				orbiter.health = orbiter.health - 300
+				orbiter.health = orbiter.health - bullet.damage
 				turnOver = 1
 				print orbiter.health
 				if orbiter.health < 0:
@@ -308,6 +316,8 @@ def turnLoop(player):
 
 		if bulletOffscreen():
 			turnOver = 1
+
+		print bullet.damage
 
 	return -1
 
