@@ -7,6 +7,7 @@ import numpy as np
 # 2 - Initialize the game
 pygame.init()
 width, height = 1000, 700
+shipFullHealth = 2000
 screen=pygame.display.set_mode((width, height))
 
 background = pygame.image.load("resources/Sprites/spaceBackground.png")
@@ -21,17 +22,17 @@ greenPlanet = pygame.image.load("resources/Sprites/greenPlanet.png")
 bulletImage = pygame.image.load("resources/Sprites/projectile.png")
 
 mainFont = pygame.font.Font("resources/Fonts/DeconStruct-Black.ttf", 32)
-mainFontSurface = mainFont.render("Orbit Shooter Thing!", 1, (150, 255, 50))
+mainFontSurface = mainFont.render("Orbit Shooter Thing!", 1, (30,210,50))
 
-player1FontSurface = mainFont.render("Player 1 Fire!", 1, (150, 255, 50))
+player1FontSurface = mainFont.render("Player 1 Fire!", 1, (30,210,50))
 
-player2FontSurface = mainFont.render("Player 2 Fire!", 1, (150, 255, 50))
+player2FontSurface = mainFont.render("Player 2 Fire!", 1, (30,210,50))
 
-player1WinFontSurface = mainFont.render("Player 1 Wins!", 1, (150, 255, 50))
+player1WinFontSurface = mainFont.render("Player 1 Wins!", 1, (30,210,50))
 
-player2WinFontSurface = mainFont.render("Player 2 Wins!", 1, (150, 255, 50))
+player2WinFontSurface = mainFont.render("Player 2 Wins!", 1, (30,210,50))
 
-gameOverFontSurface = mainFont.render("Game Over!", 1, (150, 255, 50))
+gameOverFontSurface = mainFont.render("Game Over!", 1, (30,210,50))
 
 #define classes of sprites
 
@@ -44,10 +45,10 @@ class Ship(pygame.sprite.Sprite):
 		self.mass = .001
 		self.prograde = False
 		self.retro = False
-		self.image = playerScaled
+		self.image = player
 		self.rect = self.image.get_rect()
 		self.radius = self.rect.width/2
-		self.health = 10000
+		self.health = shipFullHealth
 
 	def move(self):
 		self.pos = [self.pos[0] + self.vel[0], self.pos[1] + self.vel[1]]
@@ -83,12 +84,13 @@ class Bullet(pygame.sprite.Sprite):
 		self.rect.y = self.pos[1]
 		self.damage += abs(self.vel[0]) + abs(self.vel[1])
 
+
 G = 6.67e-11
 pi = np.pi
 cos = np.cos
 
 orbiter = Ship(0, 0)
-orbiter2 = Ship(1, width-(playerScaled.get_size()[0]))
+orbiter2 = Ship(1, width-(player.get_size()[0]))
 
 orbiter.rect.x = orbiter.pos[0]
 orbiter.rect.y = orbiter.pos[1]
@@ -131,6 +133,10 @@ player2Group.add(orbiter2)
 
 bullet = Bullet([-10.0, -10.0]) #initialize the bullet that will be fired by each player
 
+healthBarLength = 200
+
+
+
 def bulletCoM():
 	bulletImageSize = bulletImage.get_size()
 	return [bullet.pos[0]+bulletImageSize[0]/2, bullet.pos[1]+bulletImageSize[1]/2]
@@ -165,7 +171,6 @@ def offScreen(proj):
 def checkKeyEvent(obj):
 	for event in pygame.event.get():
 		if event.type==pygame.QUIT:
-			# if it is quit the game
 			pygame.quit()
 			exit(0)
 		if event.type==pygame.KEYDOWN:
@@ -209,8 +214,8 @@ def blitObjects(bodyList):
 		screen.blit(greenPlanet, body.pos)
 	if bullet.fired == 1:
 		screen.blit(bulletImage, bullet.pos)
-	screen.blit(playerScaled, orbiter.pos)
-	screen.blit(playerScaled, orbiter2.pos)
+	screen.blit(player, orbiter.pos)
+	screen.blit(player, orbiter2.pos)
 
 def bulletOffscreen():
 	if offScreen(bullet):
@@ -220,7 +225,7 @@ def bulletOffscreen():
 		return 1
 	return 0
 
-def doBulletPhysics(bodylist, dt):
+def doBulletPhysics(bodylist):
 	#bullet.vel = [bullet.vel[0]+fvec(moon)[0]+fvec(moon2)[0]+fvec(moon3)[0], bullet.vel[1]+fvec(moon)[1]+fvec(moon2)[1]+fvec(moon3)[1]]
 	for body in bodylist:
 		bullet.vel[0] = (bullet.vel[0]+fvec(body)[0])
@@ -259,9 +264,28 @@ def collision(obj, bodylist):
 		else:
 			return False
 
+def drawHealthBars():
+	percentHealth = orbiter.health/shipFullHealth
+	healthBar = pygame.Rect(100, 20, healthBarLength*percentHealth, 20)
+	pygame.draw.rect(screen, (200,0,0), healthBar, 0)
+
+	healthBarOutline = pygame.Rect(100, 20, healthBarLength, 20)
+	pygame.draw.rect(screen, (30,210,50), healthBarOutline, 5)
+
+	percentHealth = orbiter2.health/shipFullHealth
+	healthBar = pygame.Rect(width-healthBarLength*percentHealth-100, 20, healthBarLength*percentHealth, 20)
+	pygame.draw.rect(screen, (200,0,0), healthBar, 0)
+
+	healthBarOutline = pygame.Rect(width-300, 20, healthBarLength, 20)
+	pygame.draw.rect(screen, (30,210,50), healthBarOutline, 5)
+
+
+
 turnOver = 0
 
 winner = -1
+
+pointList = [orbiter.pos, orbiter.pos]
 
 ##############################
 ######## GAME LOOP ###########
@@ -270,6 +294,7 @@ def turnLoop(player):
 	turnFontShown = 0
 	turnOver = 0
 	bullet.damage = 0
+	pygame.draw.lines(screen, (0,0,255), False, pointList, 4)
 	while not turnOver:
 		screen.fill(0)
 
@@ -277,7 +302,9 @@ def turnLoop(player):
 
 		blitObjects(bodyList)
 
-		pygame.display.flip()
+		drawHealthBars()
+
+		#pygame.display.flip()
 
 		if turnFontShown == 0:		#this is to make sure the font is always shown for the whole turn
 			showTurnFont(player)
@@ -292,8 +319,15 @@ def turnLoop(player):
 			doBurn(orbiter) #move the orbiter
 		if player == 1:
 			doBurn(orbiter2) #move the orbiter
-		if bullet.fired == 1:	
-			doBulletPhysics(bodyList, timeElapsed)
+
+
+		if bullet.fired == 1:
+			doBulletPhysics(bodyList)
+			#pointList.append(bullet.pos)
+		
+		#pygame.draw.lines(screen, (0,0,255), False, pointList, 4)
+
+		print pointList
 
 		if collision(bullet, bodyList):
 			turnOver = 1
@@ -317,7 +351,7 @@ def turnLoop(player):
 		if bulletOffscreen():
 			turnOver = 1
 
-		print bullet.damage
+		pygame.display.flip()
 
 	return -1
 
