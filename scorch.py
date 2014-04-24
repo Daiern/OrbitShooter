@@ -69,7 +69,7 @@ class Bullet(pygame.sprite.Sprite):
 	def __init__(self, position):
 		pygame.sprite.Sprite.__init__(self)
 		self.mass = .001
-		self.vel = [0, 0.0]
+		self.vel = [0.0, 0.0]
 		self.pos = position
 		self.fired = 0
 		self.image = bulletImage
@@ -135,6 +135,8 @@ bullet = Bullet([-10.0, -10.0]) #initialize the bullet that will be fired by eac
 
 healthBarLength = 200
 
+player1Colour = (0,0,255)
+player2Colour = (255,0,0)
 
 
 def bulletCoM():
@@ -142,7 +144,7 @@ def bulletCoM():
 	return [bullet.pos[0]+bulletImageSize[0]/2, bullet.pos[1]+bulletImageSize[1]/2]
 
 def CoM(body):
-	imageSize = greenPlanet.get_size()
+	imageSize = body.image.get_size()
 	return [body.pos[0]+imageSize[0]/2, body.pos[1]+imageSize[1]/2]
 
 def r(body):
@@ -168,6 +170,12 @@ def offScreen(proj):
 	if bullet.pos[0] > width or bullet.pos[0] < -10 or bullet.pos[1] > height or bullet.pos[1] < -10:
 		return 1
 
+def rMouse():
+	return math.sqrt(math.pow(bulletCoM()[0] - pygame.mouse.get_pos()[0], 2) + math.pow(bulletCoM()[1] - pygame.mouse.get_pos()[1], 2))
+
+def mouseUnitVec(ship):
+	return [(ship.pos[0] - pygame.mouse.get_pos()[0])/rMouse(), (ship.pos[1] - pygame.mouse.get_pos()[1])/rMouse()]
+
 def checkKeyEvent(obj):
 	for event in pygame.event.get():
 		if event.type==pygame.QUIT:
@@ -181,7 +189,7 @@ def checkKeyEvent(obj):
 			if event.key==K_SPACE:
 				if bullet.fired == 0:
 					bullet.pos = [obj.pos[0], obj.pos[1]]
-					bullet.vel = [(width/2 - obj.pos[0])/128, 0]
+					bullet.vel = [4*-mouseUnitVec(obj)[0], 4*-mouseUnitVec(obj)[1]]
 					bullet.fired = 1
 		if event.type==pygame.KEYUP:
 			if event.key==K_w:
@@ -279,13 +287,18 @@ def drawHealthBars():
 	healthBarOutline = pygame.Rect(width-300, 20, healthBarLength, 20)
 	pygame.draw.rect(screen, (30,210,50), healthBarOutline, 5)
 
+def drawPoints(pointlist, colour):
+	for rect in pointlist:
+		pygame.draw.rect(screen, colour, [rect[0], rect[1], 2, 2])
+
 
 
 turnOver = 0
 
 winner = -1
 
-pointList = [orbiter.pos, orbiter.pos]
+player1PointList = [bullet.pos]
+player2PointList = [bullet.pos]
 
 ##############################
 ######## GAME LOOP ###########
@@ -294,7 +307,7 @@ def turnLoop(player):
 	turnFontShown = 0
 	turnOver = 0
 	bullet.damage = 0
-	pygame.draw.lines(screen, (0,0,255), False, pointList, 4)
+	pointListTimer = 0
 	while not turnOver:
 		screen.fill(0)
 
@@ -304,30 +317,29 @@ def turnLoop(player):
 
 		drawHealthBars()
 
-		#pygame.display.flip()
+		pygame.draw.line(screen, (255,255,255), orbiter.pos, pygame.mouse.get_pos())
 
 		if turnFontShown == 0:		#this is to make sure the font is always shown for the whole turn
 			showTurnFont(player)
-			turnFontShown = 1
+			turnFontShown = 1			
 
 		if player == 0:
-			checkKeyEvent(orbiter) #check for keypresses for moving and firing
+			checkKeyEvent(orbiter)
+			doBurn(orbiter) #move the orbiter
+			if bullet.fired == 1:
+				doBulletPhysics(bodyList)
+				if pointListTimer == 0:
+					player1PointList.append(bulletCoM())
 		if player == 1:
 			checkKeyEvent(orbiter2)
-
-		if player == 0:
-			doBurn(orbiter) #move the orbiter
-		if player == 1:
 			doBurn(orbiter2) #move the orbiter
+			if bullet.fired == 1:
+				doBulletPhysics(bodyList)
+				if pointListTimer == 0:
+					player2PointList.append(bulletCoM())
 
-
-		if bullet.fired == 1:
-			doBulletPhysics(bodyList)
-			#pointList.append(bullet.pos)
-		
-		#pygame.draw.lines(screen, (0,0,255), False, pointList, 4)
-
-		print pointList
+		drawPoints(player1PointList, player1Colour)
+		drawPoints(player2PointList, player2Colour)
 
 		if collision(bullet, bodyList):
 			turnOver = 1
@@ -353,6 +365,10 @@ def turnLoop(player):
 
 		pygame.display.flip()
 
+		pointListTimer = pointListTimer + 1
+		if pointListTimer > 4:
+			pointListTimer = 0
+
 	return -1
 
 
@@ -377,9 +393,6 @@ def gameLoop():
 
 		if winner != -1:
 			return winner
-
-
-	print "Player", winner+1, "wins!"
 
 
 def gameOver(winner):
