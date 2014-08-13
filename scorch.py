@@ -2,7 +2,6 @@
 import pygame
 from pygame.locals import *
 import math
-import numpy as np
 
 # 2 - Initialize the game
 pygame.init()
@@ -87,8 +86,8 @@ class Bullet(pygame.sprite.Sprite):
 
 
 G = 6.67e-11
-pi = np.pi
-cos = np.cos
+#pi = np.pi
+#cos = np.cos
 
 orbiter = Ship(0, 0) #player 1's ship
 orbiter2 = Ship(1, width-(player.get_size()[0])) #player 2's ship
