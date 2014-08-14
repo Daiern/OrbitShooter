@@ -1,0 +1,16 @@
+Must have python 2.7 and pygame installed to play
+
+To run:
+
+Open a CLI
+use command: python scorch.py
+
+To play:
+
+Play is separated by turns
+One player shoots at a time, followed by the other player and so on
+Each player aims with the mouse and hits SPACEBAR to fire
+Aiming goes from the ships centre position to the mouse position
+Damage dealt is proportional to the distance travelled by the bullet
+Each planets gravity affects the bullet no matter where it is
+When one players ships hull strength is zero, the other player wins
