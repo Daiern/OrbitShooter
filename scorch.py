@@ -21,6 +21,8 @@ greenPlanet = pygame.image.load("resources/Sprites/greenPlanet.png")
 
 bulletImage = pygame.image.load("resources/Sprites/projectile.png")
 
+crosshair = pygame.image.load("resources/Sprites/crosshair.png")
+
 mainFont = pygame.font.Font("resources/Fonts/DeconStruct-Black.ttf", 32)
 mainFontSurface = mainFont.render("Orbit Shooter Thing!", 1, (30,210,50))
 
@@ -83,11 +85,6 @@ class Bullet(pygame.sprite.Sprite):
 		self.rect.x = self.pos[0]
 		self.rect.y = self.pos[1]
 		self.damage += abs(self.vel[0]) + abs(self.vel[1])
-
-
-G = 6.67e-11
-pi = np.pi
-cos = np.cos
 
 orbiter = Ship(0, 0)
 orbiter2 = Ship(1, width-(player.get_size()[0]))
@@ -162,19 +159,15 @@ def fvec(body):
 #def fvecScaled():
 #	return [(f()*unitVec()[0])/10000000000000, (f()*unitVec()[1])/10000000000000]
 
-def fire(ship):
-	bullet.pos = [ship.pos[0], ship.pos[1]]
-	bullet.fired = 1
-
 def offScreen(proj):
 	if bullet.pos[0] > width or bullet.pos[0] < -10 or bullet.pos[1] > height or bullet.pos[1] < -10:
 		return 1
 
-def rMouse():
-	return math.sqrt(math.pow(bulletCoM()[0] - pygame.mouse.get_pos()[0], 2) + math.pow(bulletCoM()[1] - pygame.mouse.get_pos()[1], 2))
+def rMouse(body):
+	return math.sqrt(math.pow(CoM(body)[0] - pygame.mouse.get_pos()[0], 2) + math.pow(CoM(body)[1] - pygame.mouse.get_pos()[1], 2))
 
 def mouseUnitVec(ship):
-	return [(ship.pos[0] - pygame.mouse.get_pos()[0])/rMouse(), (ship.pos[1] - pygame.mouse.get_pos()[1])/rMouse()]
+	return [(pygame.mouse.get_pos()[0] - CoM(ship)[0])/rMouse(ship), (pygame.mouse.get_pos()[1]-CoM(ship)[1])/rMouse(ship)]
 
 def checkKeyEvent(obj):
 	for event in pygame.event.get():
@@ -188,8 +181,8 @@ def checkKeyEvent(obj):
 				obj.retro = True
 			if event.key==K_SPACE:
 				if bullet.fired == 0:
-					bullet.pos = [obj.pos[0], obj.pos[1]]
-					bullet.vel = [4*-mouseUnitVec(obj)[0], 4*-mouseUnitVec(obj)[1]]
+					bullet.pos = [CoM(obj)[0]-bullet.image.get_size()[0]/2, CoM(obj)[1]-bullet.image.get_size()[1]/2]
+					bullet.vel = [4*mouseUnitVec(obj)[0], 4*mouseUnitVec(obj)[1]]
 					bullet.fired = 1
 		if event.type==pygame.KEYUP:
 			if event.key==K_w:
@@ -224,6 +217,8 @@ def blitObjects(bodyList):
 		screen.blit(bulletImage, bullet.pos)
 	screen.blit(player, orbiter.pos)
 	screen.blit(player, orbiter2.pos)
+	mousePos = [pygame.mouse.get_pos()[0]-crosshair.get_size()[0]/2, pygame.mouse.get_pos()[1]-crosshair.get_size()[1]/2]
+	screen.blit(crosshair, mousePos)
 
 def bulletOffscreen():
 	if offScreen(bullet):
@@ -317,8 +312,6 @@ def turnLoop(player):
 
 		drawHealthBars()
 
-		pygame.draw.line(screen, (255,255,255), orbiter.pos, pygame.mouse.get_pos())
-
 		if turnFontShown == 0:		#this is to make sure the font is always shown for the whole turn
 			showTurnFont(player)
 			turnFontShown = 1			
@@ -374,7 +367,10 @@ def turnLoop(player):
 
 def gameLoop():
 	player = 0
+	pygame.mouse.set_visible(0)
 	blitText(mainFontSurface)
+	drawPoints(player1PointList, player1Colour)
+	drawPoints(player2PointList, player2Colour)
 	pygame.display.flip()
 	pygame.time.delay(2000)
 	while 1:
