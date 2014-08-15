@@ -2,7 +2,6 @@
 import pygame
 from pygame.locals import *
 import math
-import numpy as np
 
 # 2 - Initialize the game
 pygame.init()
