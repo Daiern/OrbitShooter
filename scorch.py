@@ -14,8 +14,8 @@ background = pygame.image.load("resources/Sprites/spaceBackground.png")
 
 clock = pygame.time.Clock()
 
-player = pygame.image.load("resources/Sprites/playerShip.png")
-playerScaled = pygame.transform.scale(player, (25, 25))
+playerImg = pygame.image.load("resources/Sprites/playerShip.png")
+playerScaled = pygame.transform.scale(playerImg, (25, 25))
 
 greenPlanet = pygame.image.load("resources/Sprites/greenPlanet.png")
 
@@ -47,7 +47,7 @@ class Ship(pygame.sprite.Sprite):
 		self.mass = .001
 		self.prograde = False
 		self.retro = False
-		self.image = player
+		self.image = playerImg
 		self.rect = self.image.get_rect()
 		self.radius = self.rect.width/2
 		self.health = shipFullHealth
@@ -85,9 +85,13 @@ class Bullet(pygame.sprite.Sprite):
 		self.rect.x = self.pos[0]
 		self.rect.y = self.pos[1]
 		self.damage += abs(self.vel[0]) + abs(self.vel[1])
+		
+		
+		
+#init classes		
 
 orbiter = Ship(0, 0)
-orbiter2 = Ship(1, width-(player.get_size()[0]))
+orbiter2 = Ship(1, width-(playerImg.get_size()[0]))
 
 orbiter.rect.x = orbiter.pos[0]
 orbiter.rect.y = orbiter.pos[1]
@@ -136,39 +140,50 @@ player1Colour = (0,0,255)
 player2Colour = (255,0,0)
 
 
+#find the centre of mass of the bullet based on sprite size
 def bulletCoM():
 	bulletImageSize = bulletImage.get_size()
 	return [bullet.pos[0]+bulletImageSize[0]/2, bullet.pos[1]+bulletImageSize[1]/2]
 
+#find the centre of mass of an body with a sprite
 def CoM(body):
 	imageSize = body.image.get_size()
 	return [body.pos[0]+imageSize[0]/2, body.pos[1]+imageSize[1]/2]
 
+#returns the distance between two points
 def r(body):
 	return math.sqrt(math.pow(bulletCoM()[0] - CoM(body)[0], 2) + math.pow(bulletCoM()[1] - CoM(body)[1], 2))
 
+#returns the total attraction force magnitude between the bullet and a body
 def f(body):
 	return -1*body.mass*bullet.mass/math.pow(r(body), 2)
 
+#find the unit vector (x,y) of the distance between a body and the bullet
 def unitVec(body):
 	return [(bulletCoM()[0] - CoM(body)[0])/r(body), (bulletCoM()[1] - CoM(body)[1])/r(body)]
 
+#returns the x and y components of the attraction force
 def fvec(body):
 	return [f(body)*unitVec(body)[0], f(body)*unitVec(body)[1]]
 
 #def fvecScaled():
 #	return [(f()*unitVec()[0])/10000000000000, (f()*unitVec()[1])/10000000000000]
 
+#test to see if the bullet has gone offscreen
 def offScreen(proj):
 	if bullet.pos[0] > width or bullet.pos[0] < -10 or bullet.pos[1] > height or bullet.pos[1] < -10:
 		return 1
 
+#return the magnitude of the distance between a body and the mouse pointer
 def rMouse(body):
 	return math.sqrt(math.pow(CoM(body)[0] - pygame.mouse.get_pos()[0], 2) + math.pow(CoM(body)[1] - pygame.mouse.get_pos()[1], 2))
 
+#return the (x,y) unit vector of the distance from a body to the mouse
 def mouseUnitVec(ship):
 	return [(pygame.mouse.get_pos()[0] - CoM(ship)[0])/rMouse(ship), (pygame.mouse.get_pos()[1]-CoM(ship)[1])/rMouse(ship)]
 
+
+#check key events, loops during game
 def checkKeyEvent(obj):
 	for event in pygame.event.get():
 		if event.type==pygame.QUIT:
@@ -190,6 +205,7 @@ def checkKeyEvent(obj):
 			if event.key==K_s:
 				obj.retro = False
 
+#move the ship up or down based on keypresses
 def doBurn(obj):
 	if obj.prograde == True:
 		if obj.pos[1] <= 0:
@@ -209,17 +225,18 @@ def doBurn(obj):
 			obj.pos = [obj.pos[0], obj.pos[1]+1]
 			obj.rect.x = obj.pos[0]
 			obj.rect.y = obj.pos[1]
-
+#takes a list of objects and uses their 
 def blitObjects(bodyList):
 	for body in bodyList:
 		screen.blit(greenPlanet, body.pos)
 	if bullet.fired == 1:
 		screen.blit(bulletImage, bullet.pos)
-	screen.blit(player, orbiter.pos)
-	screen.blit(player, orbiter2.pos)
+	screen.blit(playerImg, orbiter.pos)
+	screen.blit(playerImg, orbiter2.pos)
 	mousePos = [pygame.mouse.get_pos()[0]-crosshair.get_size()[0]/2, pygame.mouse.get_pos()[1]-crosshair.get_size()[1]/2]
 	screen.blit(crosshair, mousePos)
 
+#reset the position of the bullet to just offscreen when it hasn't been fired
 def bulletOffscreen():
 	if offScreen(bullet):
 		bullet.pos = [-10.0, -10.0]
@@ -228,8 +245,8 @@ def bulletOffscreen():
 		return 1
 	return 0
 
+#go through the planets and apply the velocity based on gravitational attraction
 def doBulletPhysics(bodylist):
-	#bullet.vel = [bullet.vel[0]+fvec(moon)[0]+fvec(moon2)[0]+fvec(moon3)[0], bullet.vel[1]+fvec(moon)[1]+fvec(moon2)[1]+fvec(moon3)[1]]
 	for body in bodylist:
 		bullet.vel[0] = (bullet.vel[0]+fvec(body)[0])
 		bullet.vel[1] = (bullet.vel[1]+fvec(body)[1])
@@ -241,6 +258,7 @@ def blitText(fontSurface):
 def blitWinText(fontSurface):
 	screen.blit(fontSurface, (width/2-fontSurface.get_size()[0]/2, height/2-fontSurface.get_size()[1]/2 - 50))
 
+#blit the text to display whose turn it is
 def showTurnFont(player):
 	if player == 0:
 		blitText(player1FontSurface)
@@ -249,6 +267,7 @@ def showTurnFont(player):
 	pygame.display.flip()
 	pygame.time.delay(1000)
 
+#reset all keys to unpressed before turn starts
 def cleanUpKeys():
 	orbiter.prograde = False
 	orbiter.retro = False
