@@ -44,18 +44,22 @@ class Ship(pygame.sprite.Sprite):
 		playerNumber = n
 		self.vel = [0.0, 0.0]
 		self.pos = [position,height/2]
-		self.mass = .001
+		self.mass = .0011
 		self.prograde = False
 		self.retro = False
 		self.image = playerImg
 		self.rect = self.image.get_rect()
 		self.radius = self.rect.width/2
 		self.health = shipFullHealth
+		self.currentWeapon = Bullet(self.pos)
 
 	def move(self):
 		self.pos = [self.pos[0] + self.vel[0], self.pos[1] + self.vel[1]]
 		self.rect.x = self.pos[0]
 		self.rect.y = self.pos[1]
+		
+	def changeWeapon(self):
+		self.currentWeapon
 
 class Planet(pygame.sprite.Sprite):
 	def __init__(self):
@@ -85,8 +89,6 @@ class Bullet(pygame.sprite.Sprite):
 		self.rect.x = self.pos[0]
 		self.rect.y = self.pos[1]
 		self.damage += abs(self.vel[0]) + abs(self.vel[1])
-		
-		
 		
 #init classes		
 
@@ -132,56 +134,48 @@ player1Group.add(orbiter)
 player2Group = pygame.sprite.Group()
 player2Group.add(orbiter2)
 
-bullet = Bullet([-10.0, -10.0]) #initialize the bullet that will be fired by each player
-
 healthBarLength = 200
 
 player1Colour = (0,0,255)
 player2Colour = (255,0,0)
 
+#############################
+######SUPPORT FUNCTIONS######
+#############################
 
-#find the centre of mass of the bullet based on sprite size
-def bulletCoM():
-	bulletImageSize = bulletImage.get_size()
-	return [bullet.pos[0]+bulletImageSize[0]/2, bullet.pos[1]+bulletImageSize[1]/2]
-
-#find the centre of mass of an body with a sprite
+#find the centre of mass of a body with a sprite
 def CoM(body):
 	imageSize = body.image.get_size()
 	return [body.pos[0]+imageSize[0]/2, body.pos[1]+imageSize[1]/2]
-
+	
 #returns the distance between two points
-def r(body):
-	return math.sqrt(math.pow(bulletCoM()[0] - CoM(body)[0], 2) + math.pow(bulletCoM()[1] - CoM(body)[1], 2))
-
+def r(body, wep):
+	return math.sqrt(math.pow(CoM(wep)[0] - CoM(body)[0], 2) + math.pow(CoM(wep)[1] - CoM(body)[1], 2))
+	
 #returns the total attraction force magnitude between the bullet and a body
-def f(body):
-	return -1*body.mass*bullet.mass/math.pow(r(body), 2)
-
+def f(body, wep):
+	return -1*body.mass*wep.mass/math.pow(r(body, wep), 2)
+	
 #find the unit vector (x,y) of the distance between a body and the bullet
-def unitVec(body):
-	return [(bulletCoM()[0] - CoM(body)[0])/r(body), (bulletCoM()[1] - CoM(body)[1])/r(body)]
-
+def unitVec(body, wep):
+	return [(CoM(wep)[0] - CoM(body)[0])/r(body, wep), (CoM(wep)[1] - CoM(body)[1])/r(body, wep)]
+	
 #returns the x and y components of the attraction force
-def fvec(body):
-	return [f(body)*unitVec(body)[0], f(body)*unitVec(body)[1]]
-
-#def fvecScaled():
-#	return [(f()*unitVec()[0])/10000000000000, (f()*unitVec()[1])/10000000000000]
-
+def fvec(body, wep):
+	return [f(body, wep)*unitVec(body, wep)[0], f(body, wep)*unitVec(body, wep)[1]]
+	
 #test to see if the bullet has gone offscreen
-def offScreen(proj):
-	if bullet.pos[0] > width or bullet.pos[0] < -10 or bullet.pos[1] > height or bullet.pos[1] < -10:
+def offScreen(wep):
+	if wep.pos[0] > width or wep.pos[0] < -10 or wep.pos[1] > height or wep.pos[1] < -10:
 		return 1
-
+		
 #return the magnitude of the distance between a body and the mouse pointer
 def rMouse(body):
 	return math.sqrt(math.pow(CoM(body)[0] - pygame.mouse.get_pos()[0], 2) + math.pow(CoM(body)[1] - pygame.mouse.get_pos()[1], 2))
-
+	
 #return the (x,y) unit vector of the distance from a body to the mouse
 def mouseUnitVec(ship):
 	return [(pygame.mouse.get_pos()[0] - CoM(ship)[0])/rMouse(ship), (pygame.mouse.get_pos()[1]-CoM(ship)[1])/rMouse(ship)]
-
 
 #check key events, loops during game
 def checkKeyEvent(obj):
@@ -195,10 +189,11 @@ def checkKeyEvent(obj):
 			if event.key==K_s:
 				obj.retro = True
 			if event.key==K_SPACE:
-				if bullet.fired == 0:
-					bullet.pos = [CoM(obj)[0]-bullet.image.get_size()[0]/2, CoM(obj)[1]-bullet.image.get_size()[1]/2]
-					bullet.vel = [4*mouseUnitVec(obj)[0], 4*mouseUnitVec(obj)[1]]
-					bullet.fired = 1
+				if obj.currentWeapon.fired == 0:
+					obj.currentWeapon.pos = CoM(obj)
+					obj.currentWeapon.vel = [4*mouseUnitVec(obj)[0], 4*mouseUnitVec(obj)[1]]
+					bodyList.append(obj.currentWeapon)
+					obj.currentWeapon.fired = 1
 		#if event.type==pygame.KEYDOWN:
 			#if event.key==K_e:
 				#obj.nextWep()
@@ -208,7 +203,7 @@ def checkKeyEvent(obj):
 			if event.key==K_w:
 				obj.prograde = False
 			if event.key==K_s:
-				obj.retro = False
+				obj.retro = False	
 
 #move the ship up or down based on keypresses
 def doBurn(obj):
@@ -230,38 +225,20 @@ def doBurn(obj):
 			obj.pos = [obj.pos[0], obj.pos[1]+1]
 			obj.rect.x = obj.pos[0]
 			obj.rect.y = obj.pos[1]
-#takes a list of objects and uses their 
-def blitObjects(bodyList):
-	for body in bodyList:
-		screen.blit(greenPlanet, body.pos)
-	if bullet.fired == 1:
-		screen.blit(bulletImage, bullet.pos)
-	screen.blit(playerImg, orbiter.pos)
-	screen.blit(playerImg, orbiter2.pos)
-	mousePos = [pygame.mouse.get_pos()[0]-crosshair.get_size()[0]/2, pygame.mouse.get_pos()[1]-crosshair.get_size()[1]/2]
-	screen.blit(crosshair, mousePos)
-
-#reset the position of the bullet to just offscreen when it hasn't been fired
-def bulletOffscreen():
-	if offScreen(bullet):
-		bullet.pos = [-10.0, -10.0]
-		bullet.vel = [0.0, 0.0]
-		bullet.fired = 0
-		return 1
-	return 0
-
-#go through the planets and apply the velocity based on gravitational attraction
-def doBulletPhysics(bodylist):
-	for body in bodylist:
-		bullet.vel[0] = (bullet.vel[0]+fvec(body)[0])
-		bullet.vel[1] = (bullet.vel[1]+fvec(body)[1])
-	bullet.move()
-
+			
 def blitText(fontSurface):
 	screen.blit(fontSurface, (width/2-fontSurface.get_size()[0]/2, height/2-fontSurface.get_size()[1]/2))
 
 def blitWinText(fontSurface):
 	screen.blit(fontSurface, (width/2-fontSurface.get_size()[0]/2, height/2-fontSurface.get_size()[1]/2 - 50))
+
+#go through the planets and apply the velocity based on gravitational attraction
+def doBulletPhysics(wep, bodylist):
+	for body in bodylist:
+		if body != wep:
+			wep.vel[0] = (wep.vel[0]+fvec(body, wep)[0])
+			wep.vel[1] = (wep.vel[1]+fvec(body, wep)[1])
+	wep.move()
 
 #blit the text to display whose turn it is
 def showTurnFont(player):
@@ -271,25 +248,13 @@ def showTurnFont(player):
 		blitText(player2FontSurface)
 	pygame.display.flip()
 	pygame.time.delay(1000)
-
+			
 #reset all keys to unpressed before turn starts
 def cleanUpKeys():
 	orbiter.prograde = False
 	orbiter.retro = False
 	orbiter2.prograde = False
 	orbiter2.retro = False
-
-def collision(obj, bodylist):
-	#for body in bodylist:
-		if pygame.sprite.spritecollide(obj, bodylist, False, pygame.sprite.collide_circle):
-			bullet.pos = [-10.0, -10.0]
-			bullet.rect.x = bullet.pos[0]
-			bullet.rect.y = bullet.pos[1]
-			bullet.vel = [0.0, 0.0]
-			bullet.fired = 0
-			return True
-		else:
-			return False
 
 def drawHealthBars():
 	percentHealth = orbiter.health/shipFullHealth
@@ -309,15 +274,39 @@ def drawHealthBars():
 def drawPoints(pointlist, colour):
 	for rect in pointlist:
 		pygame.draw.rect(screen, colour, [rect[0], rect[1], 2, 2])
-
-
-
+		
+#takes a list of objects and uses their 
+def blitObjects(bodyList):
+	for body in bodyList:
+		screen.blit(body.image, body.pos)
+	#if bullet.fired == 1:
+	#	screen.blit(bulletImage, bullet.pos)
+	screen.blit(playerImg, orbiter.pos)
+	screen.blit(playerImg, orbiter2.pos)
+	mousePos = [pygame.mouse.get_pos()[0]-crosshair.get_size()[0]/2, pygame.mouse.get_pos()[1]-crosshair.get_size()[1]/2]
+	screen.blit(crosshair, mousePos)
+	
+	
+def collision(obj, bodylist):
+	for body in bodylist:
+		if pygame.sprite.spritecollide(obj, bodylist, False, pygame.sprite.collide_circle):
+		#	bullet.pos = [-10.0, -10.0]
+		#	bullet.rect.x = bullet.pos[0]
+		#	bullet.rect.y = bullet.pos[1]
+		#	bullet.vel = [0.0, 0.0]
+		#	bullet.fired = 0
+			print pygame.sprite.spritecollide(obj, bodylist, False, pygame.sprite.collide_circle)
+			return True
+		else:
+			print "No Collided"
+			return False
+		
 turnOver = 0
 
 winner = -1
 
-player1PointList = [bullet.pos]
-player2PointList = [bullet.pos]
+player1PointList = []
+player2PointList = []
 
 ##############################
 ######## GAME LOOP ###########
@@ -325,7 +314,6 @@ player2PointList = [bullet.pos]
 def turnLoop(player):
 	turnFontShown = 0
 	turnOver = 0
-	bullet.damage = 0
 	pointListTimer = 0
 	while not turnOver:
 		screen.fill(0)
@@ -341,44 +329,51 @@ def turnLoop(player):
 			turnFontShown = 1			
 
 		if player == 0:
+			orbiter.currentWeapon.damage = 0
 			checkKeyEvent(orbiter)
 			doBurn(orbiter) #move the orbiter
-			if bullet.fired == 1:
-				doBulletPhysics(bodyList)
+			if orbiter.currentWeapon.fired == 1:
+				doBulletPhysics(orbiter.currentWeapon, bodyList)
+				if collision(orbiter.currentWeapon, bodyGroup) or offScreen(orbiter.currentWeapon):
+					orbiter.currentWeapon.fired = 0
+					orbiter.currentWeapon.vel = [0.0, 0.0]
+					bodyList.remove(orbiter.currentWeapon)
+					turnOver = 1
 				if pointListTimer == 0:
-					player1PointList.append(bulletCoM())
+					player1PointList.append(CoM(orbiter.currentWeapon))
+					
 		if player == 1:
+			orbiter2.currentWeapon.damage = 0
 			checkKeyEvent(orbiter2)
 			doBurn(orbiter2) #move the orbiter
-			if bullet.fired == 1:
-				doBulletPhysics(bodyList)
+			if orbiter2.currentWeapon.fired == 1:
+				doBulletPhysics(orbiter2.currentWeapon, bodyList)
+				if collision(orbiter2.currentWeapon, bodyGroup) or offScreen(orbiter2.currentWeapon):
+					orbiter2.currentWeapon.fired = 0
+					orbiter2.currentWeapon.vel = [0.0, 0.0]
+					bodyList.remove(orbiter2.currentWeapon)
+					turnOver = 1
 				if pointListTimer == 0:
-					player2PointList.append(bulletCoM())
+					player2PointList.append(CoM(orbiter2.currentWeapon))
 
 		drawPoints(player1PointList, player1Colour)
 		drawPoints(player2PointList, player2Colour)
 
-		if collision(bullet, bodyList):
-			turnOver = 1
-
 		if player == 0:
-			if collision(bullet, player2Group):
-				orbiter2.health = orbiter2.health - bullet.damage
+			if collision(orbiter.currentWeapon, player2Group):
+				orbiter2.health = orbiter2.health - orbiter.currentWeapon.damage
 				turnOver = 1
 				print orbiter2.health
 				if orbiter2.health < 0:
 					return 0
 
 		if player == 1:
-			if collision(bullet, player1Group):
-				orbiter.health = orbiter.health - bullet.damage
+			if collision(orbiter2.currentWeapon, player1Group):
+				orbiter.health = orbiter.health - orbiter2.currentWeapon.damage
 				turnOver = 1
 				print orbiter.health
 				if orbiter.health < 0:
 					return 1
-
-		if bulletOffscreen():
-			turnOver = 1
 
 		pygame.display.flip()
 
@@ -387,8 +382,7 @@ def turnLoop(player):
 			pointListTimer = 0
 
 	return -1
-
-
+	
 def gameLoop():
 	player = 0
 	pygame.mouse.set_visible(0)
@@ -415,6 +409,7 @@ def gameLoop():
 			return winner
 
 
+#Shows the Game Over text and the winner after a player dies
 def gameOver(winner):
 	while 1:
 		screen.fill(0)
@@ -431,6 +426,5 @@ def gameOver(winner):
 			# if it is quit the game
 				pygame.quit()
 				exit(0)
-
-
-gameOver(gameLoop())
+				
+gameOver(gameLoop()) #game loop returns a winner
